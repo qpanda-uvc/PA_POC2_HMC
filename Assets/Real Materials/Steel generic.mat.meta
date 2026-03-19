@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: 865e35c9ba1ad424fb8fa36178794f39
+labels:
+- common
+- generic
+- ordinary
+- PBR
+- bare
+- steel
+- iron
+- shiny
+- glossy
+- dented
+- dents
+- material
+- texture
+- metal
+timeCreated: 1433877600
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

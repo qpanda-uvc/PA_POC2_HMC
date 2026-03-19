@@ -1,0 +1,228 @@
+{
+  "ULDs": [
+    {
+      "id": 1,
+      "code": "SCB-Type1",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 294.6,
+      "uldType": "SCB",
+      "vertexCord": {
+        "t1": {
+          "x1": 100.2,
+          "y1": 294.6,
+          "x2": 243.8,
+          "y2": 135.9
+        }
+      }
+    },
+    {
+      "id": 2,
+      "code": "SCB-Type2",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 243.8,
+      "uldType": "SCB",
+      "vertexCord": {
+        "t1": {
+          "x1": 167.6,
+          "y1": 243.8,
+          "x2": 243.8,
+          "y2": 138.2
+        }
+      }
+    },
+    {
+      "id": 3,
+      "code": "SCA-Type1",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 299.7,
+      "uldType": "SCA",
+      "vertexCord": {
+        "t1": {
+          "x1": 117.3,
+          "y1": 299.7,
+          "x2": 243.8,
+          "y2": 196.6
+        }
+      }
+    },
+    {
+      "id": 4,
+      "code": "SCA-Type2",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 243.8,
+      "uldType": "SCA",
+      "vertexCord": {
+        "t1": {
+          "x1": 197.6,
+          "y1": 243.8,
+          "x2": 243.8,
+          "y2": 198.2
+        }
+      }
+    },
+    {
+      "id": 5,
+      "code": "NCR-Type1",
+      "width": 313,
+      "length": 317.5,
+      "depth": 243,
+      "uldType": "NCR",
+      "vertexCord": {
+        "t1": {
+          "x1": 0,
+          "y1": 239,
+          "x2": 4,
+          "y2": 243
+        },
+        "t2": {
+          "x1": 313,
+          "y1": 239,
+          "x2": 309,
+          "y2": 243
+        }
+      }
+    },
+    {
+      "id": 6,
+      "code": "SCD-Type1",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 299.7,
+      "uldType": "SCD",
+      "vertexCord": {
+        "t1": {
+          "x1": 166.4,
+          "y1": 299.7,
+          "x2": 243.8,
+          "y2": 243.8
+        }
+      }
+    },
+    {
+      "id": 7,
+      "code": "NCD-Type1",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 243.8,
+      "uldType": "NCD",
+      "vertexCord": {}
+    },
+    {
+      "id": 8,
+      "code": "A-Type1",
+      "width": 317.5,
+      "length": 243.8,
+      "depth": 243.8,
+      "uldType": "A1",
+      "vertexCord": {
+        "t1": {
+          "x1": 0,
+          "y1": 154.9,
+          "x2": 121.9,
+          "y2": 243.8
+        },
+        "t2": {
+          "x1": 317.5,
+          "y1": 154.9,
+          "x2": 195.6,
+          "y2": 243.8
+        }
+      }
+    },
+    {
+      "id": 9,
+      "code": "A-Type2",
+      "width": 317.5,
+      "length": 243.8,
+      "depth": 243.8,
+      "uldType": "A2",
+      "vertexCord": {
+        "t1": {
+          "x1": 0,
+          "y1": 170.2,
+          "x2": 39.3,
+          "y2": 243.8
+        },
+        "t2": {
+          "x1": 317.5,
+          "y1": 170.2,
+          "x2": 278.2,
+          "y2": 243.8
+        }
+      }
+    },
+    {
+      "id": 10,
+      "code": "LDP-Type1",
+      "width": 243.8,
+      "length": 317.5,
+      "depth": 243.8,
+      "uldType": "LDP",
+      "vertexCord": {}
+    },
+    {
+      "id": 11,
+      "code": "LD6-Type1",
+      "width": 406.4,
+      "length": 153.4,
+      "depth": 162.5,
+      "uldType": "LD6",
+      "vertexCord": {
+        "t1": {
+          "x1": 0,
+          "y1": 38.1,
+          "x2": 44.5,
+          "y2": 0
+        },
+        "t2": {
+          "x1": 406.4,
+          "y1": 38.1,
+          "x2": 362,
+          "y2": 0
+        }
+      }
+    },
+    {
+      "id": 12,
+      "code": "LD6-Type2",
+      "width": 477.5,
+      "length": 153.4,
+      "depth": 162.5,
+      "uldType": "LD6",
+      "vertexCord": {
+        "t1": {
+          "x1": 0,
+          "y1": 83.8,
+          "x2": 80,
+          "y2": 0
+        },
+        "t2": {
+          "x1": 477.5,
+          "y1": 83.8,
+          "x2": 397.5,
+          "y2": 0
+        }
+      }
+    },
+    {
+      "id": 13,
+      "code": "LD3-Type1",
+      "width": 201.6,
+      "length": 153.4,
+      "depth": 162.5,
+      "uldType": "LD3",
+      "vertexCord": {
+        "t1": {
+          "x1": 0,
+          "y1": 45.4,
+          "x2": 45.4,
+          "y2": 0
+        }
+      }
+    }
+  ]
+}
