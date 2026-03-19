@@ -92,7 +92,7 @@ public class AMR : MonoBehaviour
         liftOriginHeight = lift.transform.position.y;
         liftHeight = liftOriginHeight + 1.0f;
 
-       
+
         if ( this.name.Contains("In"))
         {
             this.group = AMRGroup.InputGroup;
@@ -101,6 +101,28 @@ public class AMR : MonoBehaviour
         {
             this.group = AMRGroup.OutputGroup;
         }
+
+        // AMR에 카메라 부착
+        AttachCamera();
+    }
+
+    private static int amrCameraIndex = 0;
+
+    void AttachCamera()
+    {
+        GameObject camObj = new GameObject("AMRCamera_" + id);
+        camObj.transform.SetParent(this.transform);
+        camObj.transform.localPosition = new Vector3(0f, 1.5f, 0.3f);
+        camObj.transform.localRotation = Quaternion.Euler(30f, 0f, 0f);
+
+        Camera cam = camObj.AddComponent<Camera>();
+        cam.fieldOfView = 60f;
+        cam.nearClipPlane = 0.1f;
+        cam.farClipPlane = 50f;
+        cam.depth = -2;
+        cam.enabled = true;
+        cam.targetDisplay = amrCameraIndex + 1; // Display 2, 3, 4, 5, 6 (AMR별)
+        amrCameraIndex++;
     }
 
     private void Update()

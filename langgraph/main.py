@@ -3,6 +3,7 @@ import os
 import re
 import json
 import math
+import random as _random
 from typing import Annotated, List, TypedDict, Optional
 from dotenv import load_dotenv
 
@@ -35,8 +36,7 @@ FIXED_PREFABS = """- Name: 7_ChargeZone | Path: Assets/Prefabs/7_ChargeZone.pref
 - Name: dockingStation | Path: Assets/Prefabs/dockingStation.prefab
 - Name: dockingStation2 | Path: Assets/Prefabs/dockingStation2.prefab
 - Name: Dummy | Path: Assets/Prefabs/Dummy.prefab
-- Name: pallet | Path: Assets/Prefabs/pallet.prefab
-- Name: pallet2 | Path: Assets/Prefabs/pallet2.prefab
+- Name: palet01 | Path: Assets/FBX/palet01.prefab
 - Name: StackerCrane | Path: Assets/Prefabs/StackerCrane.prefab
 - Name: tempDummy | Path: Assets/Prefabs/tempDummy.prefab"""
 
@@ -703,6 +703,28 @@ class LayoutEngine:
                     candidates.append(path)      # 부분 매칭 후보
         return candidates[0] if candidates else None
 
+    def _extract_bounds_center(self, obj, depth=0) -> dict | None:
+        """gameObject JSON에서 Renderer.bounds.center 추출 (children 제외)"""
+        if depth > 10 or obj is None:
+            return None
+        if isinstance(obj, dict):
+            if "bounds" in obj and isinstance(obj["bounds"], dict):
+                center = obj["bounds"].get("center")
+                if isinstance(center, dict) and "x" in center:
+                    return {"x": float(center["x"]), "y": float(center["y"]), "z": float(center["z"])}
+            for k, v in obj.items():
+                if k == "children":
+                    continue
+                r = self._extract_bounds_center(v, depth + 1)
+                if r:
+                    return r
+        elif isinstance(obj, list):
+            for item in obj:
+                r = self._extract_bounds_center(item, depth + 1)
+                if r:
+                    return r
+        return None
+
     async def resolve_positions(self, session, layout: dict, available_prefabs: str) -> list:
         """layout dict → 충돌 없는 좌표 리스트"""
         layout_type = layout.get("type", "custom")
@@ -717,28 +739,67 @@ class LayoutEngine:
         else:
             bounds = {"x": 1.0, "y": 1.0, "z": 1.0}
 
-        # container 정보 조회 (MCP에서 실제 geometry 재조회)
+        # container 정보 조회 (MCP 직접 조회 — 자식이 아닌 해당 오브젝트 자체의 bounds만 사용)
         container_info = None
         if container_name:
-            container_info = self.cc.find_by_name(container_name)
-            if container_info:
-                try:
-                    obj_res = await session.call_tool("get_gameobject", {"idOrName": container_name})
-                    obj_text = obj_res.content[0].text if isinstance(obj_res.content, list) else str(obj_res.content)
-                    data = json.loads(obj_text) if isinstance(obj_text, str) else obj_text
-                    go = data.get("gameObject", data)
-                    gb = self.cc._find_gameobject_bounds(go)
-                    if gb:
-                        container_info = {
-                            "center": gb["center"],
-                            "half_extents": {a: gb["size"][a] / 2 for a in ("x", "y", "z")},
-                            "name": container_name
-                        }
-                except Exception as e:
-                    print(f"  [LayoutEngine] container MCP 재조회 실패: {e}, 기존 정보 사용")
+            try:
+                obj_res = await session.call_tool("get_gameobject", {"idOrName": container_name})
+                obj_text = obj_res.content[0].text if isinstance(obj_res.content, list) else str(obj_res.content)
+                data = json.loads(obj_text) if isinstance(obj_text, str) else obj_text
+                go = data.get("gameObject", data)
+
+                # 1) 해당 오브젝트 자체의 position 추출
+                obj_pos = {"x": 0, "y": 0, "z": 0}
+                obj_scale = {"x": 1, "y": 1, "z": 1}
+                for comp in go.get("components", []):
+                    props = comp.get("properties", {})
+                    if "position" in props and isinstance(props["position"], dict):
+                        p = props["position"]
+                        if "x" in p:
+                            obj_pos = {a: float(p[a]) for a in ("x", "y", "z")}
+                    if "scale" in props and isinstance(props["scale"], dict):
+                        s = props["scale"]
+                        if "x" in s:
+                            obj_scale = {a: abs(float(s[a])) for a in ("x", "y", "z")}
+
+                print(f"  [DEBUG container] position={obj_pos}, scale={obj_scale}")
+
+                # 2) 자식을 제외한 자체 bounds만 추출
+                go_no_children = {k: v for k, v in go.items() if k != "children"}
+                bounds_size = self.cc._find_bounds_size(go_no_children)
+                bounds_center = self._extract_bounds_center(go_no_children)
+                print(f"  [DEBUG container] bounds_size={bounds_size}, bounds_center={bounds_center}")
+
+                if bounds_size:
+                    # Renderer.bounds의 center는 오브젝트 위치와 다를 수 있음
+                    # bounds에서 center도 추출 시도
+                    bounds_center = self._extract_bounds_center(go_no_children)
+                    center = bounds_center if bounds_center else obj_pos
+                    container_info = {
+                        "center": center,
+                        "half_extents": {a: bounds_size[a] / 2 for a in ("x", "y", "z")},
+                        "name": container_name
+                    }
+                else:
+                    # bounds가 없으면 Unity Plane 기본 크기(10x10) * scale로 추정
+                    container_info = {
+                        "center": obj_pos,
+                        "half_extents": {
+                            "x": 5.0 * obj_scale["x"],
+                            "y": 0.5,
+                            "z": 5.0 * obj_scale["z"]
+                        },
+                        "name": container_name
+                    }
+                    print(f"  [LayoutEngine] container bounds 없음, Transform scale 기반 추정: "
+                          f"scale={obj_scale}")
+
+                self.cc.register(container_info["center"],
+                                container_info["half_extents"], container_name)
                 print(f"  [LayoutEngine] container '{container_name}' 발견: "
                       f"center={container_info['center']}, half_extents={container_info['half_extents']}")
-            else:
+            except Exception as e:
+                print(f"  [LayoutEngine] container MCP 조회 실패: {e}")
                 print(f"  [LayoutEngine] WARNING: container '{container_name}' 미발견, 일반 모드로 진행")
 
         # enclosure 내부 공간 계산
@@ -854,6 +915,17 @@ class LayoutEngine:
                 raw_positions = self._generate_line(layout, bounds)
             elif layout_type == "perimeter":
                 raw_positions = self._generate_perimeter(layout, bounds)
+            elif layout_type == "random":
+                # container가 있으면 range를 container 크기로 자동 설정
+                if container_info:
+                    c_half = container_info["half_extents"]
+                    c_margin = layout.get("container_margin", 2.0)
+                    layout = dict(layout)  # copy to avoid mutation
+                    layout.setdefault("range_x", (c_half["x"] - c_margin) * 2)
+                    layout.setdefault("range_z", (c_half["z"] - c_margin) * 2)
+                    # center는 0,0,0 (나중에 container 오프셋 적용됨)
+                    layout.setdefault("center", {"x": 0, "y": 0, "z": 0})
+                raw_positions = self._generate_random(layout, bounds)
             elif layout_type == "custom":
                 raw_positions = layout.get("positions", [])
             else:
@@ -1039,6 +1111,40 @@ class LayoutEngine:
 
         return positions
 
+    def _generate_random(self, layout: dict, bounds: dict) -> list:
+        """random 패턴 좌표 생성 — container 범위 내에 랜덤 배치 (충돌 없는 위치)"""
+        count = layout.get("count", 9)
+        margin = 0.3
+        half_bx = bounds["x"] / 2 + margin
+        half_bz = bounds["z"] / 2 + margin
+
+        # 범위: container가 있으면 resolve_positions에서 클램핑됨, 여기서는 기본 범위 사용
+        range_x = layout.get("range_x", 20.0)
+        range_z = layout.get("range_z", 20.0)
+        center = layout.get("center", {"x": 0, "y": 0, "z": 0})
+
+        positions = []
+        max_attempts = count * 50
+        attempts = 0
+
+        while len(positions) < count and attempts < max_attempts:
+            attempts += 1
+            x = center["x"] + _random.uniform(-range_x / 2, range_x / 2)
+            z = center["z"] + _random.uniform(-range_z / 2, range_z / 2)
+            y = center.get("y", 0)
+
+            # 이미 배치된 위치와 충돌 검사
+            collision = False
+            for p in positions:
+                if abs(x - p["x"]) < bounds["x"] + margin and abs(z - p["z"]) < bounds["z"] + margin:
+                    collision = True
+                    break
+            if not collision:
+                positions.append({"x": round(x, 2), "y": y, "z": round(z, 2)})
+
+        print(f"  [LayoutEngine] random: {len(positions)}개 좌표 생성 (범위: {range_x}x{range_z}, 중심: {center})")
+        return positions
+
 # ------------------------------------------------------------------
 # 3-C. 헬퍼 함수 (LLM 대체 불가 - MCP API 호출)
 # ------------------------------------------------------------------
@@ -1177,7 +1283,7 @@ Keywords:"""
 def repair_truncated_json(text):
     """잘린 JSON을 자동으로 닫아서 파싱 시도"""
     try:
-아        return json.loads(text)
+        return json.loads(text)
     except:
         pass
     repaired = text.rstrip()
@@ -1344,6 +1450,7 @@ async def planner_node(state: AgentState) -> dict:
    - "grid": NxM 격자 배열. 필수: prefab, start(시작점), rows, cols, spacing_x, spacing_z
    - "line": 1열 배치. 필수: prefab, start, count, axis("x"또는"z"), spacing
    - "perimeter": ㄷ자/ㅁ자 벽 배치. 필수: prefab, center(중심), width, depth, open_side("south"/"north"/"east"/"west"), spacing
+   - "random": 범위 내 랜덤 배치. 필수: prefab, count. 선택: center(중심점), range_x(x범위), range_z(z범위). container 지정 시 container 내부에 랜덤 배치
    - "custom": 특수 배치(자유 좌표). 필수: prefab, positions 배열
    - "delete": 오브젝트 삭제. 필수: targets(삭제할 오브젝트 이름 배열)
 5. spacing은 대략적 권장값만 지정 (시스템이 오브젝트 크기보다 작으면 자동 확대).
@@ -1430,6 +1537,52 @@ layout 예시:
         "user_feedback":     ""
     }
 
+
+
+def fix_asset_path(asset_path: str, available_prefabs: str) -> str:
+    """
+    LLM이 생성한 assetPath가 available_prefabs 목록에 없으면,
+    prefab 이름(stem)으로 fuzzy 매칭하여 올바른 경로로 보정.
+    예: 'Assets/Prefabs/palet_obstacle.prefab' → 'Assets/FBX/palet01.prefab'
+    """
+    if not asset_path or not available_prefabs:
+        return asset_path
+
+    # 목록에서 모든 경로 추출
+    all_paths = {}
+    for line in available_prefabs.split('\n'):
+        m = re.search(r'Path:\s*(Assets/[^\s|]+)', line)
+        if m:
+            path = m.group(1).strip()
+            stem = path.rsplit('/', 1)[-1].rsplit('.', 1)[0].lower()
+            all_paths[stem] = path
+
+    # 이미 목록에 있는 경로면 그대로 반환
+    input_stem = asset_path.rsplit('/', 1)[-1].rsplit('.', 1)[0].lower()
+    if input_stem in all_paths:
+        return all_paths[input_stem]
+
+    # 정확 매칭 실패 → 부분 매칭 (입력 stem이 목록 stem에 포함되거나 그 반대)
+    for stem, path in all_paths.items():
+        if input_stem in stem or stem in input_stem:
+            print(f"  [assetPath 보정] '{asset_path}' → '{path}'")
+            return path
+
+    # 단어 단위 매칭 (palet_obstacle → palet → palet01 매칭)
+    input_words = set(re.split(r'[_\-\s]+', input_stem))
+    best_score = 0
+    best_path = None
+    for stem, path in all_paths.items():
+        stem_words = set(re.split(r'[_\-\s]+', stem))
+        overlap = len(input_words & stem_words)
+        if overlap > best_score:
+            best_score = overlap
+            best_path = path
+    if best_path and best_score > 0:
+        print(f"  [assetPath 보정] '{asset_path}' → '{best_path}' (단어 매칭)")
+        return best_path
+
+    return asset_path
 
 
 async def resolve_params_with_llm(llm, params: dict, step_results_context: str) -> dict:
@@ -1760,6 +1913,10 @@ async def executor_node(step: dict, session, tools_info: str, available_prefabs:
             params = await resolve_params_with_llm(llm, params, prev_result_text)
 
         params = {k: v for k, v in params.items() if v is not None}
+
+        # assetPath 자동 보정: LLM이 잘못된 경로를 생성해도 available_prefabs에서 매칭
+        if 'assetPath' in params and isinstance(params['assetPath'], str):
+            params['assetPath'] = fix_asset_path(params['assetPath'], available_prefabs)
 
         # 숫자형 파라미터 자동 변환 (LLM이 문자열로 반환하는 문제 대응)
         INT_PARAMS = {"instanceId", "parentId"}

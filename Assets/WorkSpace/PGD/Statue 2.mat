@@ -163,7 +163,7 @@ Material:
     - _DepthOffsetEnable: 0
     - _DetailAlbedoMapScale: 1
     - _DetailNormalMapScale: 1
-    - _DissolveAmount: 0.24123587
+    - _DissolveAmount: 0.56043494
     - _DoubleSidedEnable: 0
     - _DoubleSidedGIMode: 0
     - _DoubleSidedNormalMode: 2
